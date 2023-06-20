@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,8 +74,8 @@ func getSearchResults() (Result, error) {
 	return result, nil
 }
 
-func processSearchResults(result Result, blobStorage *BlobStorage) map[string]TestFailEntryPriodic {
-	testFailMap := make(map[string]TestFailEntryPriodic)
+func processSearchResults(result Result, blobStorage *BlobStorage) map[string]TestFailEntry {
+	testFailMap := make(map[string]TestFailEntry)
 
 	for k, search := range result {
 		expectedBuildLogURL, err := parseURL(k, runType)
@@ -96,12 +97,14 @@ func processSearchResults(result Result, blobStorage *BlobStorage) map[string]Te
 			prNumber = strArr[4]
 		}
 
+		re := regexp.MustCompile(ansi)
+
 		for _, matches := range search {
 			for _, match := range matches {
 				lines := []string{}
 				for _, line := range match.Context {
 					cleanLine := strings.TrimSpace(line)
-					cleanLine = StripAnsi(cleanLine)
+					cleanLine = StripAnsi(cleanLine, re)
 					dup := false
 					for _, l := range lines {
 						if l == cleanLine {
@@ -111,7 +114,7 @@ func processSearchResults(result Result, blobStorage *BlobStorage) map[string]Te
 					if !dup {
 						entry, exists := testFailMap[cleanLine]
 						if !exists {
-							entry = TestFailEntryPriodic{LogURLs: map[string][]string{}}
+							entry = TestFailEntry{LogURLs: map[any][]string{}}
 						}
 
 						entry.TestFail++
@@ -157,7 +160,7 @@ func processSearchResults(result Result, blobStorage *BlobStorage) map[string]Te
 	return testFailMap
 }
 
-func convertTestFailMapToSlice(testFailMap map[string]TestFailEntryPriodic) []TestFails {
+func convertTestFailMapToSlice(testFailMap map[string]TestFailEntry) []TestFails {
 	fails := []TestFails{}
 	for test, entry := range testFailMap {
 		prList := entry.PRList

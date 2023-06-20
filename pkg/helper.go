@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -229,4 +230,24 @@ func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, erro
 
 	return string(byteValue), nil
 
+}
+
+type sortedSlice []interface{}
+
+func (a sortedSlice) Len() int {
+	return len(a)
+}
+
+func (a sortedSlice) Less(i, j int) bool {
+	// Type assertion to int for comparison
+	return a[i].(int64) < a[j].(int64)
+}
+
+func (a sortedSlice) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func sortAnyList(prList sortedSlice) sortedSlice {
+	sort.Sort(sort.Reverse(prList))
+	return prList
 }

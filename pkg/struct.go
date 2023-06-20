@@ -10,10 +10,8 @@ const ansi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)
 const ansiTime = `\(\d+\.\d+s\)`
 const ansiPrefix = `---\s+FAIL:\s+kuttl/harness/`
 
-var re = regexp.MustCompile(ansi)
-
 // StripAnsi ...
-func StripAnsi(str string) string {
+func StripAnsi(str string, re *regexp.Regexp) string {
 	return re.ReplaceAllString(str, "")
 }
 
@@ -26,26 +24,26 @@ type Match struct {
 
 // TestFailEntry ...
 type TestFailEntry struct {
-	PRList   []int
+	PRList   []interface{}
 	TestFail int
 	LastSeen *time.Time
-	LogURLs  map[int] /* pr number -> log urls */ []string
+	LogURLs  map[any] /* pr number/ -> log urls */ []string
 }
 
-type TestFailEntryPriodic struct {
-	PRList   []string
-	TestFail int
-	LastSeen *time.Time
-	LogURLs  map[string] /* pr number -> log urls */ []string
-}
+// type TestFailEntryPriodic struct {
+// 	PRList   []string
+// 	TestFail int
+// 	LastSeen *time.Time
+// 	LogURLs  map[string] /* pr number -> log urls */ []string
+// }
 
 type TestFails struct {
 	Score    int
 	TestName string
 	Fails    int
 	LastSeen string
-	PRList   []string
-	Entry    TestFailEntryPriodic
+	PRList   []any
+	Entry    TestFailEntry
 }
 
 // Result ...

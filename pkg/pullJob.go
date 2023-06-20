@@ -5,20 +5,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func PeriodicJobStats_working_original() {
+func PullJobStats() {
 	blobStorage, err := NewBlobStorage("./.cache")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	testFailMap := map[string]TestFailEntryPriodic{}
+	testFailMap := map[string]TestFailEntry{}
 
 	// store search results
 	var result Result
@@ -28,22 +29,19 @@ func PeriodicJobStats_working_original() {
 	// 	panic(err)
 	// }
 	// defer jsonFile.Close()
-	runType := "periodic"
+	runType := "pull"
 	req, err := http.NewRequest("GET", "https://search.ci.openshift.org/search", nil)
 	if err != nil {
 		panic(err)
 	}
 
 	// https://search.ci.openshift.org/search?context=0&maxAge=336h&maxBytes=20971520&maxMatches=5&name=pull-ci-openshift-odo-main-&search=%5C%5BFail%5C%5D&type=build-log
-	// https://search.ci.openshift.org/search?context=0&maxAge=336h&maxBytes=20971520&maxMatches=5&name=periodic-ci-redhat-developer-odo-main-&search=%5C%5BFail%5C%5D&type=build-log
-	// https://search.ci.openshift.org/search?context=0&maxAge=336h&maxBytes=20971520&maxMatches=5&name=periodic-ci-redhat-developer-odo-main-&search=%5C%5BFail%5C%5D&type=build-log
-	// https://search.ci.openshift.org/search?context=0&maxAge=48h&maxBytes=20971520&maxMatches=5&name=periodic-ci-redhat-developer-odo-main-&search=%5C%5BFAIL%5C%5D&type=build-log
 	q := req.URL.Query()
-	q.Add("search", "\\[FAIL\\]")
-	q.Add("maxAge", "488h")
+	q.Add("search", "(?i)--- FAIL: kuttl/harness/1-")
+	q.Add("maxAge", "336h")
 	q.Add("context", "0")
 	q.Add("type", "build-log")
-	q.Add("name", "periodic-ci-redhat-developer-odo-main-")
+	q.Add("name", "pull-ci-redhat-developer-gitops-operator-master-")
 	q.Add("maxMatches", "5")
 	q.Add("maxBytes", "20971520")
 	req.URL.RawQuery = q.Encode()
@@ -59,15 +57,15 @@ func PeriodicJobStats_working_original() {
 		panic(err)
 	}
 
-	// fmt.Println(req.URL.String())
 	err = json.Unmarshal(byteValue, &result)
 	if err != nil {
 		panic(err)
 	}
 
+	// fmt.Println("map:", string(byteValue))
+
 	// iterate over all results
 	for k, search := range result {
-		//fmt.Println(k)
 		expectedBuildLogURL, err := parseURL(k, runType)
 		if err != nil {
 			expectedBuildLogURL = ""
@@ -79,42 +77,44 @@ func PeriodicJobStats_working_original() {
 			return
 		}
 
-		odoIndex := strings.Index(k, "redhat-developer-odo-main-")
+		odoIndex := strings.Index(k, "redhat-developer_gitops-operator")
 
-		//prNumber := int64(-1)
-		var prNumber string
+		prNumber := int64(-1)
+
 		if odoIndex > -1 {
 			str := k[odoIndex:]
-			strArr := strings.Split(str, "-")
-			// fmt.Print(strArr, "\n")
-			prNumber = strArr[4]
-			// prNumber, _ = strconv.ParseInt(strArr[1], 10, 64)
+			strArr := strings.Split(str, "/")
+
+			prNumber, err = strconv.ParseInt(strArr[1], 10, 64)
 		}
 
-		//fmt.Printf("%s\n", file)
+		// fmt.Printf("%s\n", file)
 		// fmt.Println("map:", search)
 		for _, matches := range search {
 			// fmt.Printf("  %v\n", regexp)
 			for _, match := range matches {
 				lines := []string{}
 				for _, line := range match.Context {
-					//fmt.Printf("    %v\n", line)
+					// fmt.Printf("    %v\n", line)
 					cleanLine := strings.TrimSpace(line)
-					cleanLine = StripAnsi(cleanLine)
+					var re = regexp.MustCompile(ansiTime)
+					cleanLine = StripAnsi(cleanLine, re)
+					re = regexp.MustCompile(ansiPrefix)
+					cleanLine = StripAnsi(cleanLine, re)
+					// fmt.Println(cleanLine)
 					// de-duplication
 					// count each line only once
 					dup := false
 					for _, l := range lines {
 						if l == cleanLine {
 							dup = true
-							// fmt.Println(l)
 						}
 					}
 					if !dup {
 
 						entry, exists := testFailMap[cleanLine]
 						if !exists {
-							entry = TestFailEntryPriodic{LogURLs: map[string][]string{}}
+							entry = TestFailEntry{LogURLs: map[any][]string{}}
 						}
 
 						entry.TestFail++
@@ -134,8 +134,8 @@ func PeriodicJobStats_working_original() {
 							entry.LastSeen = val
 
 						}
-						//fmt.Println(entry)
-						if prNumber != "" {
+
+						if prNumber >= 0 {
 
 							matchFound := false
 							for _, existingEntry := range entry.PRList {
@@ -149,19 +149,19 @@ func PeriodicJobStats_working_original() {
 							}
 
 							// Add build log URL for the PR
-							logURLList := entry.LogURLs[prNumber]
+							logURLList := entry.LogURLs[int(prNumber)]
 							logURLList = append(logURLList, expectedBuildLogURL)
-							entry.LogURLs[prNumber] = logURLList
-							//fmt.Println(entry.LogURLs, "\n")
+							entry.LogURLs[int(prNumber)] = logURLList
 						}
 
 						testFailMap[cleanLine] = entry
 
 					}
-
+					// fmt.Println(testFailMap)
 				}
 			}
 		}
+
 	}
 
 	// convert tests to slice so we can easily sort it
@@ -169,8 +169,7 @@ func PeriodicJobStats_working_original() {
 	for test, entry := range testFailMap {
 
 		prList := entry.PRList
-
-		//sort.Sort(sort.Reverse(sort.IntSlice(prList)))
+		prList = sortAnyList(prList)
 
 		lastSeenVal := ""
 
@@ -182,6 +181,7 @@ func PeriodicJobStats_working_original() {
 			lastSeenTime := entry.LastSeen
 			if lastSeenTime != nil {
 
+				//days := time.Now().Sub(*lastSeenTime).Hours() / 24
 				days := time.Since(*lastSeenTime).Hours() / 24
 
 				lastSeenVal = fmt.Sprintf("%d days ago", int(days))
@@ -240,9 +240,11 @@ func PeriodicJobStats_working_original() {
 		return fails[j].TestName > fails[i].TestName
 	})
 
-	fmt.Println("# odo test statistics for periodic jobs")
-	fmt.Printf("Last update: %s (UTC)\n\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
-	fmt.Println("| Failure Score<sup>*</sup> | Failures | Test Name | Last Seen | Cluster version and Logs ")
+	fmt.Println("# gitops-operator test statistics")
+	// fmt.Printf("Last update: %s (UTC)\n\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
+	// fmt.Println("Generated with https://github.com/jgwest/odo-tools/ and https://github.com/kadel/odo-tools")
+	fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
+	fmt.Println("| Failure Score<sup>*</sup> | Failures | Test Name | Last Seen | PR List and Logs ")
 	fmt.Println("|---|---|---|---|---|")
 	for _, f := range fails {
 
@@ -256,7 +258,7 @@ func PeriodicJobStats_working_original() {
 
 			logURLs := f.Entry.LogURLs[prNumber]
 
-			prListString += fmt.Sprintf("[%s]", prNumber)
+			prListString += fmt.Sprintf("[#%d](%s/%d)", prNumber, "https://github.com/redhat-developer/gitops-operator/pull/", prNumber)
 
 			if len(logURLs) > 0 {
 
@@ -281,4 +283,10 @@ func PeriodicJobStats_working_original() {
 
 	fmt.Println()
 	fmt.Println()
+	// periodicjobstats()
+	fmt.Println()
+	fmt.Println("<sup>*</sup> - Failure score is an arbitrary severity estimate, and is approximately `(# of PRs the test failure was seen in * # of test failures) / (days since failure)`. See code for full algorithm -- PRs welcome for algorithm improvements.")
+	fmt.Println()
+	// fmt.Println("Graph represents the total no of testcase failures observed per day")
+	// fmt.Println("![graph](https://gist.github.com/anandrkskd/1ea5606207f6141af21c7c3b0d527635/raw/graph.png)")
 }

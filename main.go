@@ -13,4 +13,5 @@ func main() {
 	fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
 
 	pkg.PeriodicJobStats()
+	pkg.PullJobStats()
 }
