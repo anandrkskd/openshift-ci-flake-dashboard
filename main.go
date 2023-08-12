@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -24,7 +24,7 @@ func readUserConfig() map[string]interface{} {
 	// defer the closing of our jsonFile so that we can parse it later on
 	defer jsonFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, _ := io.ReadAll(jsonFile)
 
 	var userConfig map[string]interface{}
 	err = json.Unmarshal([]byte(byteValue), &userConfig)
@@ -59,5 +59,7 @@ func main() {
 	// fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
 
 	// pkg.PeriodicJobStats(userConfig)
-	pkg.PullJobStats(userConfig)
+	fmt.Println("THIS IS USER CONFIG", userConfig)
+	pkg.PullJobStats()
+	pkg.PeriodicJobStats()
 }
