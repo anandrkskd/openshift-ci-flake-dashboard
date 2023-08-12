@@ -88,7 +88,7 @@ func PullJobStats() {
 			prNumber, err = strconv.ParseInt(strArr[1], 10, 64)
 		}
 
-		// fmt.Printf("%s\n", file)
+		//fmt.Printf("%s\n", file)
 		// fmt.Println("map:", search)
 		for _, matches := range search {
 			// fmt.Printf("  %v\n", regexp)
@@ -101,7 +101,6 @@ func PullJobStats() {
 					cleanLine = StripAnsi(cleanLine, re)
 					re = regexp.MustCompile(ansiPrefix)
 					cleanLine = StripAnsi(cleanLine, re)
-					// fmt.Println(cleanLine)
 					// de-duplication
 					// count each line only once
 					dup := false
@@ -114,7 +113,7 @@ func PullJobStats() {
 
 						entry, exists := testFailMap[cleanLine]
 						if !exists {
-							entry = TestFailEntry{LogURLs: map[any][]string{}}
+							entry = TestFailEntry{LogURLs: map[int][]string{}}
 						}
 
 						entry.TestFail++
@@ -139,13 +138,13 @@ func PullJobStats() {
 
 							matchFound := false
 							for _, existingEntry := range entry.PRList {
-								if existingEntry == prNumber {
+								if int64(existingEntry) == prNumber {
 									matchFound = true
 								}
 							}
 
 							if !matchFound {
-								entry.PRList = append(entry.PRList, prNumber)
+								entry.PRList = append(entry.PRList, int(prNumber))
 							}
 
 							// Add build log URL for the PR
@@ -157,11 +156,20 @@ func PullJobStats() {
 						testFailMap[cleanLine] = entry
 
 					}
-					// fmt.Println(testFailMap)
+
 				}
 			}
 		}
 
+	}
+
+	type TestFails struct {
+		Score    int
+		TestName string
+		Fails    int
+		LastSeen string
+		PRList   []int
+		Entry    TestFailEntry
 	}
 
 	// convert tests to slice so we can easily sort it
@@ -169,7 +177,8 @@ func PullJobStats() {
 	for test, entry := range testFailMap {
 
 		prList := entry.PRList
-		prList = sortAnyList(prList)
+
+		sort.Sort(sort.Reverse(sort.IntSlice(prList)))
 
 		lastSeenVal := ""
 
@@ -240,9 +249,6 @@ func PullJobStats() {
 		return fails[j].TestName > fails[i].TestName
 	})
 
-	fmt.Println("# gitops-operator test statistics")
-	// fmt.Printf("Last update: %s (UTC)\n\n", time.Now().UTC().Format("2006-01-02 15:04:05"))
-	// fmt.Println("Generated with https://github.com/jgwest/odo-tools/ and https://github.com/kadel/odo-tools")
 	fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
 	fmt.Println("| Failure Score<sup>*</sup> | Failures | Test Name | Last Seen | PR List and Logs ")
 	fmt.Println("|---|---|---|---|---|")
@@ -258,7 +264,7 @@ func PullJobStats() {
 
 			logURLs := f.Entry.LogURLs[prNumber]
 
-			prListString += fmt.Sprintf("[#%d](%s/%d)", prNumber, "https://github.com/redhat-developer/gitops-operator/pull/", prNumber)
+			prListString += fmt.Sprintf("[#%d](%s/%d)", prNumber, "https://github.com/redhat-developer/gitops-operator/pull", prNumber)
 
 			if len(logURLs) > 0 {
 
@@ -281,12 +287,6 @@ func PullJobStats() {
 		fmt.Printf("| %d | %d | %s | %s | %s\n", f.Score, f.Fails, f.TestName, f.LastSeen, prListString)
 	}
 
-	fmt.Println()
-	fmt.Println()
-	// periodicjobstats()
-	fmt.Println()
-	fmt.Println("<sup>*</sup> - Failure score is an arbitrary severity estimate, and is approximately `(# of PRs the test failure was seen in * # of test failures) / (days since failure)`. See code for full algorithm -- PRs welcome for algorithm improvements.")
-	fmt.Println()
-	// fmt.Println("Graph represents the total no of testcase failures observed per day")
-	// fmt.Println("![graph](https://gist.github.com/anandrkskd/1ea5606207f6141af21c7c3b0d527635/raw/graph.png)")
+	// fmt.Println()
+	// fmt.Println()
 }

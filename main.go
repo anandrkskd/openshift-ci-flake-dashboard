@@ -54,12 +54,11 @@ func main() {
 	// userConfig := readUserConfig()
 	userConfig := readUserConfigFromEnvFile()
 
-	// fmt.Println("# odo test statistics")
+	fmt.Printf("# %s test statistics\n", userConfig["repoName"])
+
 	// fmt.Println("Generated with https://github.com/jgwest/odo-tools/ and https://github.com/kadel/odo-tools")
 	// fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
 
-	// pkg.PeriodicJobStats(userConfig)
-	fmt.Println("THIS IS USER CONFIG", userConfig)
 	pkg.PullJobStats()
 	pkg.PeriodicJobStats()
 }

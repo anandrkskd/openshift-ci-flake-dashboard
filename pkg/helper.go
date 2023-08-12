@@ -7,86 +7,13 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 )
 
-// BlobStorage ...
-type BlobStorage struct {
-	path string
-}
-
-// NewBlobStorage ...
-func NewBlobStorage(pathParam string) (*BlobStorage, error) {
-	blobStorage := BlobStorage{
-		path: pathParam,
-	}
-
-	if _, err := os.Stat(pathParam); os.IsNotExist(err) {
-		err = os.Mkdir(pathParam, 0755)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	files, err := ioutil.ReadDir(pathParam)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, f := range files {
-		info, err := os.Stat(pathParam + "/" + f.Name())
-
-		if err != nil {
-			return nil, err
-		}
-
-		modTime := info.ModTime()
-
-		diff := time.Since(modTime)
-
-		// Delete cache entries older than 3 weeks
-		if diff.Hours() > 24*7*3 {
-			err := os.Remove(pathParam + "/" + f.Name())
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-	}
-
-	return &blobStorage, nil
-}
-
-func (s BlobStorage) Store(key string, value string) error {
-	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
-
-	expectedPath := s.path + "/" + base64Key[:18]
-
-	err := ioutil.WriteFile(expectedPath, []byte(value), 0755)
-
-	return err
-
-}
-
-func (s BlobStorage) Retrieve(key string) (string, error) {
-	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
-
-	expectedPath := s.path + "/" + base64Key[:18]
-
-	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
-		return "", nil
-	}
-
-	contents, err := ioutil.ReadFile(expectedPath)
-	if err != nil {
-		return "", err
-	}
-
-	return string(contents), nil
-
+// StripAnsi ...
+func StripAnsi(str string, re *regexp.Regexp) string {
+	return re.ReplaceAllString(str, "")
 }
 
 func parseDate(dateString string) *time.Time {
@@ -177,7 +104,7 @@ func parseURL(url, runType string) (string, error) {
 	index = strings.LastIndex(url[0:index-1], "/")
 
 	if runType == "pull" {
-		return "https://storage.googleapis.com/origin-ci-test/pr-logs/pull/redhat-developer_odo" + url[index:] + "/build-log.txt", nil
+		return "https://storage.googleapis.com/origin-ci-test/pr-logs/pull/redhat-developer_gitops-operator" + url[index:] + "/build-log.txt", nil
 	} else if runType == "periodic" {
 		return "https://storage.googleapis.com/origin-ci-test" + url[index:] + "/build-log.txt", nil
 	}
@@ -186,7 +113,7 @@ func parseURL(url, runType string) (string, error) {
 
 func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, error) {
 
-	value, err := blobStorage.Retrieve(url)
+	value, err := blobStorage.retrieve(url)
 	if err != nil {
 		return "", err
 	}
@@ -206,6 +133,7 @@ func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, erro
 	if err != nil {
 		return "", err
 	}
+
 	req, err := http.NewRequest("GET", newURL, nil)
 	if err != nil {
 		return "", err
@@ -223,7 +151,7 @@ func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, erro
 
 	resp.Body.Close()
 
-	err = blobStorage.Store(url, string(byteValue))
+	err = blobStorage.store(url, string(byteValue))
 	if err != nil {
 		return "", err
 	}
@@ -232,22 +160,74 @@ func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, erro
 
 }
 
-type sortedSlice []interface{}
+// NewBlobStorage ...
+func NewBlobStorage(pathParam string) (*BlobStorage, error) {
+	blobStorage := BlobStorage{
+		path: pathParam,
+	}
 
-func (a sortedSlice) Len() int {
-	return len(a)
+	if _, err := os.Stat(pathParam); os.IsNotExist(err) {
+		err = os.Mkdir(pathParam, 0755)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	files, err := ioutil.ReadDir(pathParam)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range files {
+		info, err := os.Stat(pathParam + "/" + f.Name())
+
+		if err != nil {
+			return nil, err
+		}
+
+		modTime := info.ModTime()
+
+		diff := time.Now().Sub(modTime)
+
+		// Delete cache entries older than 3 weeks
+		if diff.Hours() > 24*7*3 {
+			err := os.Remove(pathParam + "/" + f.Name())
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	}
+
+	return &blobStorage, nil
 }
 
-func (a sortedSlice) Less(i, j int) bool {
-	// Type assertion to int for comparison
-	return a[i].(int64) < a[j].(int64)
+func (s BlobStorage) store(key string, value string) error {
+	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
+
+	expectedPath := s.path + "/" + base64Key[:18]
+
+	err := ioutil.WriteFile(expectedPath, []byte(value), 0755)
+
+	return err
+
 }
 
-func (a sortedSlice) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
+func (s BlobStorage) retrieve(key string) (string, error) {
+	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
 
-func sortAnyList(prList sortedSlice) sortedSlice {
-	sort.Sort(sort.Reverse(prList))
-	return prList
+	expectedPath := s.path + "/" + base64Key[:18]
+
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	contents, err := ioutil.ReadFile(expectedPath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(contents), nil
+
 }
