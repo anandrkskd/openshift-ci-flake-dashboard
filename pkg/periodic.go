@@ -35,7 +35,7 @@ func PeriodicJobStats() {
 	q.Add("search", "(?i)--- FAIL: kuttl/harness/1-")
 	q.Add("maxAge", "336h")
 	q.Add("context", "0")
-	q.Add("type", "all")
+	q.Add("type", "build-log")
 	q.Add("name", "periodic-ci-redhat-developer-gitops-operator-master-")
 	q.Add("maxMatches", "5")
 	q.Add("maxBytes", "20971520")
@@ -79,7 +79,7 @@ func PeriodicJobStats() {
 			str := k[odoIndex:]
 			strArr := strings.Split(str, "-")
 			// fmt.Print(strArr, "\n")
-			prNumber = strArr[4]
+			prNumber = strArr[5]
 		}
 
 		// fmt.Printf("%s\n", file)
@@ -249,11 +249,6 @@ func PeriodicJobStats() {
 	fmt.Println("| Failure Score<sup>*</sup> | Failures | Test Name | Last Seen | PR List and Logs ")
 	fmt.Println("|---|---|---|---|---|")
 	for _, f := range fails {
-
-		// Skip failures that appear to be contained to a single PR
-		if len(f.PRList) <= 1 {
-			continue
-		}
 
 		prListString := fmt.Sprintf("%d: ", len(f.PRList))
 		for _, prNumber := range f.PRList {
