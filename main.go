@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"openshift-ci-flake-dashboard/pkg"
 	"os"
 	"strings"
-
-	"github.com/anandrkskd/openshift-ci-flake-dashboard/pkg"
 )
 
 // method #1 using json struct to store variables

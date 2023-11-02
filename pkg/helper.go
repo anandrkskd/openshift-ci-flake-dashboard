@@ -17,13 +17,13 @@ func StripAnsi(str string, re *regexp.Regexp) string {
 }
 
 func parseDate(dateString string) *time.Time {
-	input := "[2023-06-15T10:38:01Z]"
+	//input := "[2023-06-15T10:38:01Z]"
 
 	// Define the layout that matches the input date format
 	layout := "[2006-01-02T15:04:05Z]"
 
 	// Parse the input string to obtain the time.Time value
-	t, err := time.Parse(layout, input)
+	t, err := time.Parse(layout, dateString)
 	if err != nil {
 		fmt.Errorf("Error parsing date:", err)
 		return nil
@@ -61,7 +61,7 @@ func getTestJobRunTime(url, runType string, blobStorage BlobStorage) (*time.Time
 		}
 
 		///
-		input := "\x1b[36mINFO\x1b[0m[2023-06-15T10:38:01Z]"
+		//input := "\x1b[36mINFO\x1b[0m[2023-06-15T10:38:01Z]"
 
 		// Define the regular expression pattern
 		pattern := `\x1b\[\d+m(.*?)\x1b\[\d+m`
@@ -70,7 +70,7 @@ func getTestJobRunTime(url, runType string, blobStorage BlobStorage) (*time.Time
 		re := regexp.MustCompile(pattern)
 
 		// Replace the matched portion with an empty string
-		output := re.ReplaceAllString(input, "")
+		output := re.ReplaceAllString(tok2[0], "")
 		// Define the regular expression pattern
 		pattern = `\[(.*?)\]`
 
@@ -83,7 +83,7 @@ func getTestJobRunTime(url, runType string, blobStorage BlobStorage) (*time.Time
 		// fmt.Println("Modified string:", match[1])
 		///
 
-		result := parseDate(match[1])
+		result := parseDate(match[0])
 		// result := time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.Now().Location())
 
 		return result, nil
