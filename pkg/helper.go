@@ -3,7 +3,8 @@ package pkg
 import (
 	"encoding/base32"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
@@ -144,7 +145,7 @@ func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, erro
 	if err != nil {
 		return "", err
 	}
-	byteValue, err := ioutil.ReadAll(resp.Body)
+	byteValue, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -173,7 +174,7 @@ func NewBlobStorage(pathParam string) (*BlobStorage, error) {
 		}
 	}
 
-	files, err := ioutil.ReadDir(pathParam)
+	files, err := os.ReadDir(pathParam)
 	if err != nil {
 		return nil, err
 	}
@@ -205,10 +206,10 @@ func NewBlobStorage(pathParam string) (*BlobStorage, error) {
 
 func (s BlobStorage) store(key string, value string) error {
 	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
+	randIndex := rand.Intn(len(base64Key)/2) + 16
+	expectedPath := s.path + "/" + base64Key[randIndex-16:randIndex]
 
-	expectedPath := s.path + "/" + base64Key[:18]
-
-	err := ioutil.WriteFile(expectedPath, []byte(value), 0755)
+	err := os.WriteFile(expectedPath, []byte(value), 0755)
 
 	return err
 
@@ -217,13 +218,14 @@ func (s BlobStorage) store(key string, value string) error {
 func (s BlobStorage) retrieve(key string) (string, error) {
 	base64Key := base32.StdEncoding.EncodeToString([]byte(key))
 
-	expectedPath := s.path + "/" + base64Key[:18]
+	randIndex := rand.Intn(len(base64Key)/2) + 16
+	expectedPath := s.path + "/" + base64Key[randIndex-16:randIndex]
 
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		return "", nil
 	}
 
-	contents, err := ioutil.ReadFile(expectedPath)
+	contents, err := os.ReadFile(expectedPath)
 	if err != nil {
 		return "", err
 	}
