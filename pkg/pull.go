@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,10 +96,9 @@ func PullJobStats() {
 				for _, line := range match.Context {
 					// fmt.Printf("    %v\n", line)
 					cleanLine := strings.TrimSpace(line)
-					var re = regexp.MustCompile(ansiTime)
-					cleanLine = StripAnsi(cleanLine, re)
-					re = regexp.MustCompile(ansiPrefix)
-					cleanLine = StripAnsi(cleanLine, re)
+					// cleanup the line using ansi
+					cleanLine = MultiStripAnsi(cleanLine)
+
 					// de-duplication
 					// count each line only once
 					dup := false

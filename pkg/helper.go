@@ -12,6 +12,15 @@ import (
 	"time"
 )
 
+// Srtips multiple ansi from string input
+func MultiStripAnsi(str string) string {
+	for _, val := range ansi {
+		re := regexp.MustCompile(val)
+		str = StripAnsi(str, re)
+	}
+	return str
+}
+
 // StripAnsi ...
 func StripAnsi(str string, re *regexp.Regexp) string {
 	return re.ReplaceAllString(str, "")

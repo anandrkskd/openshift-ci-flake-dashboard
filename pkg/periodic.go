@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -91,11 +90,7 @@ func PeriodicJobStats() {
 				for _, line := range match.Context {
 					// fmt.Printf("    %v\n", line)
 					cleanLine := strings.TrimSpace(line)
-					var re = regexp.MustCompile(ansiTime)
-					cleanLine = StripAnsi(cleanLine, re)
-					re = regexp.MustCompile(ansiPrefix)
-					cleanLine = StripAnsi(cleanLine, re)
-					// fmt.Println(cleanLine)
+					cleanLine = MultiStripAnsi(cleanLine)
 					// de-duplication
 					// count each line only once
 					dup := false
@@ -216,6 +211,11 @@ func PeriodicJobStats() {
 		}
 
 		fails = append(fails, TestFails{TestName: test, Fails: entry.TestFail, PRList: prList, Score: score, LastSeen: lastSeenVal, Entry: entry})
+	}
+
+	if len(fails) == 0 {
+		fmt.Println("### *No Test failures found for last 14 days of test runs*")
+		return
 	}
 
 	sort.Slice(fails, func(i, j int) bool {
