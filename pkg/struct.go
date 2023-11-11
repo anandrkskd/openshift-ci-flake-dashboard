@@ -40,3 +40,12 @@ type Result map[string]map[string][]Match
 type BlobStorage struct {
 	path string
 }
+
+type Config struct {
+	Pull      bool   `json:"pull"`
+	Periodic  bool   `json:"periodic"`
+	Regex     string `json:"regex"`
+	RepoName  string `json:"repoName"`
+	RepoOrg   string `json:"repoOrg"`
+	SearchStr string `json:"searchStr"`
+}

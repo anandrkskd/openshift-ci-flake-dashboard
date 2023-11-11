@@ -12,25 +12,22 @@ import (
 
 // method #1 using json struct to store variables
 // filename: userconfig.json
-func readUserConfig() map[string]interface{} {
+func readUserConfig(config *pkg.Config) {
 	// Open our jsonFile
 	jsonFile, err := os.Open("userconfig.json")
 	// if we os.Open returns an error then handle it
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Successfully Opened userconfig.json")
+
 	// defer the closing of our jsonFile so that we can parse it later on
 	defer jsonFile.Close()
 
 	byteValue, _ := io.ReadAll(jsonFile)
-
-	var userConfig map[string]interface{}
-	err = json.Unmarshal([]byte(byteValue), &userConfig)
+	err = json.Unmarshal(byteValue, &config)
 	if err != nil {
 		fmt.Println(err)
 	}
-	return userConfig
 }
 
 // # method #2 to use env var files, values seperated by `,`
@@ -50,14 +47,16 @@ func readUserConfigFromEnvFile() map[string]interface{} {
 
 func main() {
 
-	// userConfig := readUserConfig()
-	userConfig := readUserConfigFromEnvFile()
+	var userConfig pkg.Config
+	readUserConfig(&userConfig)
+	//userConfig := readUserConfigFromEnvFile()
 
-	fmt.Printf("# %s test statistics\n", userConfig["repoName"])
+	pkg.Ansi = append(pkg.Ansi, userConfig.Regex)
+	//fmt.Printf("# test config %v \n", userConfig)
 
 	// fmt.Println("Generated with https://github.com/jgwest/odo-tools/ and https://github.com/kadel/odo-tools")
 	// fmt.Println("## FLAKY TESTS: Failed test scenarios in past 14 days")
-
-	pkg.PullJobStats()
-	pkg.PeriodicJobStats()
+	//
+	pkg.PullJobStats(userConfig)
+	pkg.PeriodicJobStats(userConfig)
 }

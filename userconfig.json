@@ -3,6 +3,7 @@
       "periodic": true,
       "regex": "---\\s+FAIL:\\s+kuttl/harness/",
       "repoName": "gitops-operator",
-      "repoOrg": "redhat-developer"
+      "repoOrg": "redhat-developer",
+      "searchStr": "(?i)--- FAIL: kuttl/harness/1-"
 }
   

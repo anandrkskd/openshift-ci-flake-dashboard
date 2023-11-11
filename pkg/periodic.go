@@ -3,7 +3,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func PeriodicJobStats() {
+func PeriodicJobStats(userConfig Config) {
 	blobStorage, err := NewBlobStorage("./.cache")
 	if err != nil {
 		fmt.Println(err)
@@ -31,11 +31,11 @@ func PeriodicJobStats() {
 
 	// https://search.ci.openshift.org/search?context=0&maxAge=336h&maxBytes=20971520&maxMatches=5&name=pull-ci-openshift-odo-main-&search=%5C%5BFail%5C%5D&type=build-log
 	q := req.URL.Query()
-	q.Add("search", "(?i)--- FAIL: kuttl/harness/1-")
+	q.Add("search", fmt.Sprintf("%s", userConfig.SearchStr))
 	q.Add("maxAge", "336h")
 	q.Add("context", "0")
 	q.Add("type", "build-log")
-	q.Add("name", "periodic-ci-redhat-developer-gitops-operator-master-")
+	q.Add("name", fmt.Sprintf("periodic-ci-%s-%s-master-", userConfig.RepoOrg, userConfig.RepoName))
 	q.Add("maxMatches", "5")
 	q.Add("maxBytes", "20971520")
 	req.URL.RawQuery = q.Encode()
@@ -46,7 +46,7 @@ func PeriodicJobStats() {
 	}
 	defer resp.Body.Close()
 
-	byteValue, err := ioutil.ReadAll(resp.Body)
+	byteValue, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
@@ -71,11 +71,11 @@ func PeriodicJobStats() {
 			return
 		}
 
-		odoIndex := strings.Index(k, "redhat-developer-gitops-operator")
+		StrIndex := strings.Index(k, fmt.Sprintf("%s-%s", userConfig.RepoOrg, userConfig.RepoName))
 
 		var prNumber string
-		if odoIndex > -1 {
-			str := k[odoIndex:]
+		if StrIndex > -1 {
+			str := k[StrIndex:]
 			strArr := strings.Split(str, "-")
 			// fmt.Print(strArr, "\n")
 			prNumber = strArr[5]
@@ -147,7 +147,6 @@ func PeriodicJobStats() {
 						testFailMap[cleanLine] = entry
 
 					}
-					// fmt.Println(testFailMap)
 				}
 			}
 		}
@@ -168,9 +167,6 @@ func PeriodicJobStats() {
 	for test, entry := range testFailMap {
 
 		prList := entry.PRList
-
-		// sort.Sort(sort.Reverse(sort.IntSlice(prList)))
-
 		lastSeenVal := ""
 
 		// Score calculation
@@ -202,8 +198,6 @@ func PeriodicJobStats() {
 
 			score = (10 * prListSize * entry.TestFail) / (daysSinceLastSeen)
 
-			// fmt.Printf("%s %d %d\n", test, score, count)
-
 			// Minimum score if there is at least one PR, and at least one fail, is 1
 			if score == 0 && len(prList) > 0 && entry.TestFail > 0 {
 				score = 1
@@ -214,7 +208,7 @@ func PeriodicJobStats() {
 	}
 
 	if len(fails) == 0 {
-		fmt.Println("### *No Test failures found for last 14 days of __Periodic__ test runs*")
+		fmt.Println("\n### *No Test failures found for last 14 days of __Periodic__ test runs*")
 		return
 	}
 
@@ -234,7 +228,7 @@ func PeriodicJobStats() {
 			return one > two
 		}
 
-		// Tertiary sort: descring by pr list size
+		// Tertiary sort: decreasing by pr list size
 		one = len(fails[i].PRList)
 		two = len(fails[j].PRList)
 		if one != two {

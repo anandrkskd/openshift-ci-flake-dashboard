@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// Srtips multiple ansi from string input
+// Srtips multiple Ansi from string input
 func MultiStripAnsi(str string) string {
-	for _, val := range ansi {
+	for _, val := range Ansi {
 		re := regexp.MustCompile(val)
 		str = StripAnsi(str, re)
 	}

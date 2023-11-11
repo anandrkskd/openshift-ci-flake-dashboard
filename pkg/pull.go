@@ -3,7 +3,7 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func PullJobStats() {
+func PullJobStats(userConfig Config) {
 	blobStorage, err := NewBlobStorage("./.cache")
 	if err != nil {
 		fmt.Println(err)
@@ -23,11 +23,6 @@ func PullJobStats() {
 	// store search results
 	var result Result
 
-	// jsonFile, err := os.Open("search.json")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer jsonFile.Close()
 	runType := "pull"
 	req, err := http.NewRequest("GET", "https://search.ci.openshift.org/search", nil)
 	if err != nil {
@@ -36,11 +31,11 @@ func PullJobStats() {
 
 	// https://search.ci.openshift.org/search?context=0&maxAge=336h&maxBytes=20971520&maxMatches=5&name=pull-ci-openshift-odo-main-&search=%5C%5BFail%5C%5D&type=build-log
 	q := req.URL.Query()
-	q.Add("search", "(?i)--- FAIL: kuttl/harness/1-")
+	q.Add("search", fmt.Sprintf("%s", userConfig.SearchStr))
 	q.Add("maxAge", "336h")
 	q.Add("context", "0")
 	q.Add("type", "build-log")
-	q.Add("name", "pull-ci-redhat-developer-gitops-operator-master-")
+	q.Add("name", fmt.Sprintf("pull-ci-%s-%s-master-", userConfig.RepoOrg, userConfig.RepoName))
 	q.Add("maxMatches", "5")
 	q.Add("maxBytes", "20971520")
 	req.URL.RawQuery = q.Encode()
@@ -51,7 +46,7 @@ func PullJobStats() {
 	}
 	defer resp.Body.Close()
 
-	byteValue, err := ioutil.ReadAll(resp.Body)
+	byteValue, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
@@ -76,12 +71,12 @@ func PullJobStats() {
 			return
 		}
 
-		odoIndex := strings.Index(k, "redhat-developer_gitops-operator")
+		StrIndex := strings.Index(k, fmt.Sprintf("%s_%s", userConfig.RepoOrg, userConfig.RepoName))
 
 		prNumber := int64(-1)
 
-		if odoIndex > -1 {
-			str := k[odoIndex:]
+		if StrIndex > -1 {
+			str := k[StrIndex:]
 			strArr := strings.Split(str, "/")
 
 			prNumber, err = strconv.ParseInt(strArr[1], 10, 64)
@@ -96,7 +91,7 @@ func PullJobStats() {
 				for _, line := range match.Context {
 					// fmt.Printf("    %v\n", line)
 					cleanLine := strings.TrimSpace(line)
-					// cleanup the line using ansi
+					// cleanup the line using Ansi
 					cleanLine = MultiStripAnsi(cleanLine)
 
 					// de-duplication
@@ -262,7 +257,7 @@ func PullJobStats() {
 
 			logURLs := f.Entry.LogURLs[prNumber]
 
-			prListString += fmt.Sprintf("[#%d](%s/%d)", prNumber, "https://github.com/redhat-developer/gitops-operator/pull", prNumber)
+			prListString += fmt.Sprintf("[#%d](%s/%d)", prNumber, fmt.Sprintf("https://github.com/%s/%s/pull", userConfig.RepoOrg, userConfig.RepoName), prNumber)
 
 			if len(logURLs) > 0 {
 
