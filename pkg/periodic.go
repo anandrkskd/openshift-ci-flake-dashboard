@@ -214,7 +214,7 @@ func PeriodicJobStats() {
 	}
 
 	if len(fails) == 0 {
-		fmt.Println("### *No Test failures found for last 14 days of test runs*")
+		fmt.Println("### *No Test failures found for last 14 days of __Periodic__ test runs*")
 		return
 	}
 
