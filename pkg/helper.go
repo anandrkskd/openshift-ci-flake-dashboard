@@ -114,11 +114,11 @@ func parseURL(url, runType string) (string, error) {
 	index = strings.LastIndex(url[0:index-1], "/")
 
 	if runType == "pull" {
-		return "https://storage.googleapis.com/origin-ci-test/pr-logs/pull/redhat-developer_gitops-operator" + url[index:] + "/build-log.txt", nil
+		return "https://storage.googleapis.com/test-platform-results/pr-logs/pull/redhat-developer_gitops-operator" + url[index:] + "/build-log.txt", nil
 	} else if runType == "periodic" {
-		return "https://storage.googleapis.com/origin-ci-test" + url[index:] + "/build-log.txt", nil
+		return "https://storage.googleapis.com/test-platform-results" + url[index:] + "/build-log.txt", nil
 	}
-	return "https://storage.googleapis.com/origin-ci-test" + url[index:] + "/build-log.txt", nil
+	return "https://storage.googleapis.com/test-platform-results" + url[index:] + "/build-log.txt", nil
 }
 
 func downloadTestLog(url, runType string, blobStorage BlobStorage) (string, error) {
