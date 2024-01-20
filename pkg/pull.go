@@ -60,6 +60,9 @@ func PullJobStats(userConfig Config) {
 
 	// iterate over all results
 	for k, search := range result {
+		if strings.Contains(k, "rehearse") {
+			break
+		}
 		expectedBuildLogURL, err := parseURL(k, runType)
 		if err != nil {
 			expectedBuildLogURL = ""
